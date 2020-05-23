@@ -56,15 +56,19 @@ class End(object):
 
     def __eq__(self, other):
         """overloading the equality operator"""
-        return self.num is other.num
+        return self.num == other.num
 
     def __nq__(self, other):
         """overloading the inequality operator"""
-        return not self.num == other.num
+        return self.num != other.num
 
     def __gt__(self, other):
         """overloading the greater than operator"""
         return self.num > other.num
+
+    def __ge__(self, other):
+        """overloading the greater than equality operator"""
+        return self > other and self == other
 
 
 class Tile(object):
@@ -149,8 +153,8 @@ class Deck(object):
 
     def draw(self):
         """Returns a tile object from deck"""
-        if self.deck():
-          return self.deck.pop()
+        if self.deck:
+            return self.deck.pop()
 
     def getHand(self):
         """Returns a hand object with tiles from deck"""
@@ -178,8 +182,14 @@ class Hand(object):
         self.hand = l
 
     def getHighestDouble(self):
-        tile = self.hand[0]
+        tile = Tile(-1, -1)
 
+        # get first double
+        for t in self.hand:
+            if t.isDouble():
+                tile = t
+
+        # find highest double
         for t in self.hand:
             if t.isDouble() and t.getEnd1() > tile.getEnd1():
                 tile = t
@@ -199,9 +209,7 @@ class Hand(object):
             t.getEnd2().print()
             print(" ", end='')
 
-        print("\n")
-
-        print(" ", end='')
+        print("\n ", end='')
 
         i = 0
         for t in self.hand:
@@ -232,30 +240,44 @@ class Board(object):
 
         self.is_first_double = False
 
-        self.size = 11
+        self.size = 30
+
         # create board matrix of size x size
         self.board = [[Tile(-1, -1) for x in range(self.size)]
                       for y in range(self.size)]
 
-        # for row in range(self.size):
-        #     for col in range(self.size):
-        #         self.board[row][col] = Tile(0, 0)
-
-        mid_point = int(self.size / 2)
+        self.mid_point = int(self.size / 2)
 
         # respective tile positions
-        self.lhs_row, self.lhs_col = mid_point, mid_point
-        self.rhs_row, self.rhs_col = mid_point, mid_point
+        self.lhs_row, self.lhs_col = self.mid_point, self.mid_point
+        self.rhs_row, self.rhs_col = self.mid_point, self.mid_point
 
     def isValid(self, h, i):
+        """Returns true if tile can be placed on board"""
         tile = h[i]  # get tile from player's hand
-
         # get the ends of the left and right hand board pieces
         lhs = self.board[self.lhs_row][self.lhs_col].getEnd1()
         rhs = self.board[self.rhs_row][self.rhs_col].getEnd2()
 
-        return (lhs != tile.getEnd1() or lhs != tile.getEnd2() or
-                rhs == tile.getEnd1() or rhs == tile.getEnd2())
+        if lhs == tile.getEnd1():
+            return True
+        elif lhs == tile.getEnd2():
+            return True
+        elif rhs == tile.getEnd1():
+            return True
+        elif rhs == tile.getEnd2():
+            return True
+
+        return False
+
+    def placeHighestDouble(self, h1):
+        i = 0
+        for t in h1.hand:
+            if t == h1.getHighestDouble():
+                self.board[self.mid_point][self.mid_point] = t
+                del h1.hand[i]
+                return
+            i += 1
 
     def placeTile(self, t, side, row, col):
         """Initiazes board coordinate with tile, returns updated coordinate"""
@@ -274,7 +296,7 @@ class Board(object):
             col += 1
 
         self.board[row][col] = t  # place tile on board with new coordinate
-        return col               # return updated coordinate
+        return col                # return updated coordinate
 
     def place(self, h, i):
         """Logic for determining where to place tile on board and updating user hand"""
@@ -283,14 +305,6 @@ class Board(object):
         # get the ends of the left and right hand board pieces
         lhs = self.board[self.lhs_row][self.lhs_col].getEnd1()
         rhs = self.board[self.rhs_row][self.rhs_col].getEnd2()
-
-        if not self.is_first_double:
-            self.rhs_col = self.placeTile(
-                tile, 'r', self.rhs_row, self.rhs_col)
-
-            del h[i]        # delete index from hand
-            self.is_first_double = True
-            return Hand(h)  # return updated hand object
 
         # placement on left hand side
         if lhs == tile.getEnd1() or lhs == tile.getEnd2():
@@ -301,7 +315,7 @@ class Board(object):
 
                 if side is 'r':
                     self.rhs_col = self.placeTile(
-                        tile, 'r', self.lhs_row, self.lhs_col)
+                        tile, 'r', self.rhs_row, self.rhs_col)
 
                     del h[i]        # delete index from hand
                     return Hand(h)  # return updated hand object
@@ -335,55 +349,48 @@ class Board(object):
 
 def main():
     b = Board()
-
     player = b.deck.getHand()
     cpu = b.deck.getHand()
-
+    is_player_turn = True
     i = 0
 
-    playerTurn = False
+    clear()
+    b.print()
+    print("Player\n")
+    player.print()
+    print('\n')
+
+    sleep(4)
 
     if player.getHighestDouble() > cpu.getHighestDouble():
-        for t in player.hand:
-            if t == player.getHighestDouble():
-                b.place(player.hand, int(i))
-            i += 1
-
-    if cpu.getHighestDouble() > player.getHighestDouble():
-        for t in cpu.hand:
-            if t == cpu.getHighestDouble():
-                b.place(cpu.hand, int(i))
-                playerTurn = True
-            i += 1
+        b.placeHighestDouble(player)
+        is_player_turn = True
+    elif cpu.getHighestDouble() > player.getHighestDouble():
+        b.placeHighestDouble(cpu)
+    else:
+        b.placeHighestDouble(cpu)
 
     while True:
         clear()
         b.print()
+        print("Player\n")
+        player.print()
+        print('\n')
 
-        if playerTurn:
-            print('\n')
-            player.print()
-            print('\n')
+        if is_player_turn:
+            while True:
+                i = 0
 
-            i = 0
-            for t in player.hand:
-               while player.hand and not b.isValid(player.hand, i):
-                  player.hand.append(b.deck.draw())
-                  sleep(1)
-               i += 1
+                while not b.isValid(player.hand, i):
+                    i += 1
 
-            index = input("Enter tile: ")
+                clear()
+                b.print()
+                player.print()
+                sleep(1)
 
-            player = b.place(player.hand, int(index))
-            sleep(1)
-
-        else:
-            i = 0
-            for t in cpu.hand:
-               if b.isValid(cpu.hand, i)
-                    b.place(cpu.hand, int(i))
-                    playerTurn = True
-              i += 1
+                index = input("\nEnter tile: ")
+                player = b.place(player.hand, int(index))
 
 
 if __name__ == '__main__':
