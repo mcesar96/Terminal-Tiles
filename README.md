@@ -1,4 +1,4 @@
-# 🁫 Terminal Tiles
+# Terminal Tiles
 The old-fashioned game of Dominoes implemented on a terminal console. The user plays against a computer until all possible dominoes have been played. The player with the highest score at the end of a round wins.
 
 ## ⚒️ Installation
